@@ -234,7 +234,7 @@ optimize_storage() {
                     echo "ACTION==\"add|change\", KERNEL==\"${dev_name}\", ATTR{queue/scheduler}=\"bfq\"" >> "$output_file"
                     echo "ACTION==\"add|change\", KERNEL==\"${dev_name}\", ATTR{queue/read_ahead_kb}=\"512\"" >> "$output_file"
                     echo "ACTION==\"add|change\", KERNEL==\"${dev_name}\", ATTR{queue/nr_requests}=\"1024\"" >> "$output_file"
-                    echo "ACTION==\"add|change\", KERNEL==="${dev_name}\", ATTR{queue/rq_affinity}=\"2\"" >> "$output_file"
+                    echo "ACTION==\"add|change\", KERNEL==\"${dev_name}\", ATTR{queue/rq_affinity}=\"2\"" >> "$output_file"
                     ;;
                 "hdd")
                     # HDD optimizations
@@ -247,7 +247,7 @@ optimize_storage() {
             esac
         fi
     done
-
+}
     # Configure the I/O scheduler system-wide
     local sysctl_io="/etc/sysctl.d/99-io-performance.conf"
     cat > "$sysctl_io" << EOF
