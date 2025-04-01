@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+
+# Color Codes for Enhanced Readability
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Detailed CPU Information Gathering
+gather_cpu_info() {
+    echo -e "${BLUE}🔍 Comprehensive CPU Analysis${NC}"
+    
+    # CPU Model and Architecture
+    CPU_MODEL=$(cat /proc/cpuinfo | grep "model name" | uniq | cut -d: -f2 | xargs)
+    CORE_COUNT=$(nproc)
+    
+    echo -e "${YELLOW}CPU Details:${NC}"
+    echo -e "  Model: $CPU_MODEL"
+    echo -e "  Total Cores: $CORE_COUNT"
+    
+    # Detailed Core Analysis
+    echo -e "\n${YELLOW}Core Performance Profile:${NC}"
+    for ((core=0; core<CORE_COUNT; core++)); do
+        MAX_FREQ=$(cat /sys/devices/system/cpu/cpu$core/cpufreq/cpuinfo_max_freq)
+        MIN_FREQ=$(cat /sys/devices/system/cpu/cpu$core/cpufreq/cpuinfo_min_freq)
+        
+        echo -e "  Core $core:"
+        echo -e "    Max Frequency: $((MAX_FREQ/1000)) MHz"
+        echo -e "    Min Frequency: $((MIN_FREQ/1000)) MHz"
+    done
+}
+
+# Performance Level Configuration
+configure_performance_levels() {
+    echo -e "\n${BLUE}🚀 Performance Level Configuration${NC}"
+    
+    PERFORMANCE_MODES=(
+        "conservative"
+        "ondemand"
+        "performance"
+        "powersave"
+    )
+    
+    echo "Available Performance Governors:"
+    for i in "${!PERFORMANCE_MODES[@]}"; do
+        echo "$((i+1)). ${PERFORMANCE_MODES[i]}"
+    done
+    
+    read -p "Select desired performance mode (1-4): " mode_choice
+    
+    if [[ $mode_choice -ge 1 && $mode_choice -le 4 ]]; then
+        SELECTED_MODE=${PERFORMANCE_MODES[$((mode_choice-1))]}
+        
+        # Apply selected mode
+        for ((core=0; core<CORE_COUNT; core++)); do
+            echo "$SELECTED_MODE" | sudo tee /sys/devices/system/cpu/cpu$core/cpufreq/scaling_governor > /dev/null
+        done
+        
+        echo -e "${GREEN}✓ Applied $SELECTED_MODE mode across all cores${NC}"
+    else
+        echo -e "${RED}❌ Invalid selection. Defaulting to performance mode.${NC}"
+        SELECTED_MODE="performance"
+    fi
+}
+
+# System-wide Installation
+install_system_wide() {
+    read -p "Would you like to install this script system-wide? (y/n): " install_choice
+    
+    if [[ $install_choice == "y" || $install_choice == "Y" ]]; then
+        SCRIPT_PATH=$(readlink -f "$0")
+        INSTALL_PATH="/usr/local/bin/cpu-governor-config"
+        
+        sudo cp "$SCRIPT_PATH" "$INSTALL_PATH"
+        sudo chmod +x "$INSTALL_PATH"
+        
+        echo -e "${GREEN}✓ Installed to $INSTALL_PATH${NC}"
+        
+        # Create usage documentation
+        create_usage_doc
+    else
+        echo -e "${YELLOW}Skipping system-wide installation.${NC}"
+    fi
+}
+
+# Create Usage Documentation
+create_usage_doc() {
+    DOCS_PATH="/usr/local/share/cpu-governor-config"
+    sudo mkdir -p "$DOCS_PATH"
+    
+    sudo tee "$DOCS_PATH/README.md" > /dev/null << EOF
+# CPU Governor Configuration Tool
+
+## Usage
+\`\`\`bash
+# Run configuration
+sudo cpu-governor-config
+
+# Quick mode switching
+sudo cpu-governor-config performance
+sudo cpu-governor-config powersave
+\`\`\`
+
+## Performance Modes
+- conservative: Moderate frequency scaling
+- ondemand: Dynamic scaling based on system load
+- performance: Maximum clock speed
+- powersave: Lowest possible clock speed
+
+## Troubleshooting
+- Ensure you have sudo privileges
+- Verify your CPU supports dynamic frequency scaling
+EOF
+    
+    echo -e "${GREEN}✓ Created usage documentation at $DOCS_PATH/README.md${NC}"
+}
+
+# Main Execution Flow
+main() {
+    # Require root privileges
+    if [[ $EUID -ne 0 ]]; then
+       echo -e "${RED}❌ This script must be run with sudo${NC}" 
+       exit 1
+    fi
+    
+    gather_cpu_info
+    configure_performance_levels
+    install_system_wide
+    
+    echo -e "\n${BLUE}🎉 Configuration Complete${NC}"
+}
+
+# Execute Main Function
+main
